@@ -15,3 +15,5 @@
 # 민감/불필요 (허용됐더라도 아래는 항상 제외)
 users.json
 node_modules/
+.env
+.env.*
