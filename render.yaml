@@ -1,0 +1,9 @@
+# Render Blueprint — 저장소 연결 시 이 설정으로 자동 배포된다.
+# 공개 주소(RENDER_EXTERNAL_URL)는 Render가 자동 주입하므로 환경변수 수동설정 불필요.
+services:
+  - type: web
+    name: holdem
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start

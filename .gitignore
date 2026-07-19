@@ -10,6 +10,7 @@
 !/package.json
 !/package-lock.json
 !/README.md
+!/render.yaml
 !/public/
 
 # 민감/불필요 (허용됐더라도 아래는 항상 제외)
