@@ -1,0 +1,17 @@
+# 이 폴더엔 여러 프로젝트가 섞여 있어 기본적으로 전부 제외하고,
+# 홀덤 프로젝트 파일만 허용한다.
+/*
+
+!/.gitignore
+!/auth.js
+!/poker.js
+!/server.js
+!/test.js
+!/package.json
+!/package-lock.json
+!/README.md
+!/public/
+
+# 민감/불필요 (허용됐더라도 아래는 항상 제외)
+users.json
+node_modules/

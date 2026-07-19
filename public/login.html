@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>호스트 로그인 · Menti Hold'em</title>
+<style>
+  :root{--felt:#0b3d2e;--gold:#e8c15a;--cream:#f4f1e8}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 30%,#12503b,#082a1f);color:var(--cream);
+    font-family:system-ui,-apple-system,sans-serif}
+  .card{width:340px;max-width:90vw;background:rgba(0,0,0,.25);border-radius:18px;padding:30px;
+    display:flex;flex-direction:column;gap:14px}
+  h1{text-align:center;color:var(--gold);letter-spacing:2px;margin:0 0 8px}
+  .tabs{display:flex;gap:8px}
+  .tabs button{flex:1;background:transparent;border:0;padding:10px;font:inherit;font-weight:700;
+    color:var(--cream);opacity:.5;cursor:pointer;border-bottom:2px solid transparent}
+  .tabs button.on{opacity:1;color:var(--gold);border-color:var(--gold)}
+  input{font:inherit;font-size:17px;padding:13px;border-radius:10px;border:0;width:100%}
+  .submit{font:inherit;font-weight:700;font-size:18px;padding:14px;border:0;border-radius:12px;
+    background:var(--gold);color:#1a1a1a;cursor:pointer}
+  .msg{min-height:20px;text-align:center;font-size:14px}
+  .msg.err{color:#ffb4b4}.msg.ok{color:#9be8b4}
+  .hint{text-align:center;font-size:13px;opacity:.6}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>♠ 호스트 로그인</h1>
+  <div class="tabs">
+    <button id="tabLogin" class="on">로그인</button>
+    <button id="tabReg">회원가입</button>
+  </div>
+  <input id="username" placeholder="아이디 (3~20자)" autocomplete="username" maxlength="20">
+  <input id="password" type="password" placeholder="비밀번호 (4자 이상)" autocomplete="current-password">
+  <button class="submit" id="submit">로그인</button>
+  <div class="msg" id="msg"></div>
+  <div class="hint">게스트로 참가하려면 <a href="/player.html" style="color:var(--gold)">여기</a></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let tab = 'login';
+function setTab(t) {
+  tab = t;
+  $('tabLogin').classList.toggle('on', t === 'login');
+  $('tabReg').classList.toggle('on', t === 'register');
+  $('submit').textContent = t === 'login' ? '로그인' : '회원가입';
+  $('password').autocomplete = t === 'login' ? 'current-password' : 'new-password';
+  $('msg').textContent = '';
+}
+$('tabLogin').onclick = () => setTab('login');
+$('tabReg').onclick = () => setTab('register');
+
+// already logged in? go straight to host
+if (localStorage.getItem('hostAuth')) location.href = '/host.html';
+
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return { ok: r.ok, data: await r.json() };
+}
+
+$('submit').onclick = submit;
+$('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+
+async function submit() {
+  const username = $('username').value.trim();
+  const password = $('password').value;
+  if (!username || !password) { show('아이디와 비밀번호를 입력해줘', true); return; }
+  $('submit').disabled = true;
+  try {
+    if (tab === 'register') {
+      const reg = await post('/api/register', { username, password });
+      if (!reg.ok) return show(reg.data.error, true);
+      show('가입 완료! 로그인 중…', false);
+    }
+    const res = await post('/api/login', { username, password });
+    if (!res.ok) return show(res.data.error, true);
+    localStorage.setItem('hostAuth', JSON.stringify(res.data));
+    location.href = '/host.html';
+  } finally { $('submit').disabled = false; }
+}
+function show(m, err) { const el = $('msg'); el.textContent = m; el.className = 'msg ' + (err ? 'err' : 'ok'); }
+</script>
+</body>
+</html>

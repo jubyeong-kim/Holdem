@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>참가 · Menti Hold'em</title>
+<style>
+  :root{--felt:#0b3d2e;--gold:#e8c15a;--cream:#f4f1e8}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 30%,#12503b,#082a1f);
+    color:var(--cream);font-family:system-ui,-apple-system,sans-serif;
+    -webkit-user-select:none;user-select:none}
+  .wrap{max-width:480px;margin:0 auto;padding:20px;min-height:100vh;display:flex;flex-direction:column}
+  h1{text-align:center;color:var(--gold);letter-spacing:2px}
+  input{font:inherit;font-size:20px;padding:14px;border-radius:10px;border:0;width:100%;text-align:center}
+  #code{text-transform:uppercase;letter-spacing:6px;font-weight:800}
+  button{font:inherit;font-weight:700;padding:16px;border:0;border-radius:12px;cursor:pointer;width:100%}
+  .join button{background:var(--gold);color:#1a1a1a;font-size:20px}
+  .join{display:flex;flex-direction:column;gap:14px;margin-top:20vh}
+  .hidden{display:none!important}
+  .status{text-align:center;opacity:.85;margin:10px 0;min-height:22px}
+  .status.turn{color:var(--gold);font-weight:700}
+  .board{display:flex;gap:6px;justify-content:center;margin:12px 0;min-height:70px;align-items:center}
+  .info{display:flex;justify-content:space-between;font-size:18px;margin:8px 4px}
+  .info b{color:var(--gold)}
+  .card{width:48px;height:68px;border-radius:7px;background:var(--cream);color:#1a1a1a;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-weight:800;font-size:20px;box-shadow:0 3px 8px rgba(0,0,0,.4)}
+  .card.red{color:#c62828}
+  .card.back{background:repeating-linear-gradient(45deg,#7a1f1f,#7a1f1f 5px,#5c1414 5px,#5c1414 10px)}
+  .card .s{font-size:.8em}
+  /* peek (squeeze) hole cards */
+  .mine{display:flex;gap:14px;justify-content:center;margin:20px 0;min-height:130px;
+    align-items:center;perspective:1000px;touch-action:none}
+  .flip{width:90px;height:126px;position:relative;transform-style:preserve-3d;
+    transform:rotateY(0deg);transition:transform .35s ease;cursor:grab}
+  .mine.dragging .flip{transition:none}
+  .face{position:absolute;inset:0;width:100%;height:100%;border-radius:10px;
+    backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-weight:800;font-size:40px;box-shadow:0 4px 10px rgba(0,0,0,.45)}
+  .face.back{background:repeating-linear-gradient(45deg,#7a1f1f,#7a1f1f 7px,#5c1414 7px,#5c1414 14px);
+    border:3px solid #e8c15a;}
+  .face.front{background:var(--cream);color:#1a1a1a;transform:rotateY(180deg)}
+  .face.front.red{color:#c62828}
+  .face .s{font-size:.8em}
+  .peekhint{text-align:center;font-size:13px;opacity:.65;margin-top:-8px}
+  .actions{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .actions button{font-size:18px}
+  .fold{background:#b23b3b;color:#fff}.check{background:#2e7d5b;color:#fff}
+  .call{background:#2e7d5b;color:#fff}.raise{background:var(--gold);color:#1a1a1a}
+  .raisebar{grid-column:1/3;display:flex;gap:10px;align-items:center}
+  .raisebar input[type=range]{flex:1}
+  .raiseamt{min-width:70px;text-align:center;color:var(--gold);font-weight:700;font-size:20px}
+  .waiting{grid-column:1/3;text-align:center;opacity:.7;padding:18px}
+  .msg{color:#ffb4b4;text-align:center;min-height:20px}
+  /* rules button + popup */
+  #rulesBtn{position:fixed;top:12px;right:14px;z-index:5;width:auto;padding:8px 14px;
+    background:rgba(0,0,0,.35);border:2px solid var(--gold);color:var(--gold);font-size:15px}
+  dialog{border:0;border-radius:16px;background:#0f4736;color:var(--cream);padding:0;
+    max-width:440px;width:92vw;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+  dialog::backdrop{background:rgba(0,0,0,.65)}
+  .rules{padding:24px;max-height:80vh;overflow:auto}
+  .rules h2{color:var(--gold);margin:0 0 4px;text-align:center}
+  .rules h3{color:var(--gold);margin:18px 0 6px;font-size:16px}
+  .rules p,.rules li{font-size:15px;line-height:1.6}
+  .rules ul{margin:6px 0;padding-left:20px}
+  .rules .rank{display:flex;flex-wrap:wrap;gap:6px;font-size:13px}
+  .rules .rank span{background:rgba(0,0,0,.3);border-radius:6px;padding:3px 8px}
+  .rules .close{width:100%;margin-top:20px;background:var(--gold);color:#1a1a1a;
+    font-weight:700;font-size:17px;padding:13px;border:0;border-radius:12px;cursor:pointer}
+  .rules b.g{color:var(--gold)}
+</style>
+</head>
+<body>
+<button id="rulesBtn">❓ 룰</button>
+
+<dialog id="rulesDlg">
+  <div class="rules">
+    <h2>♠ 텍사스 홀덤 룰 ♥</h2>
+    <p style="text-align:center;opacity:.85">내 카드 2장 + 공용 카드 5장으로<br>가장 센 <b class="g">5장 조합</b>을 만들면 이겨!</p>
+
+    <h3>진행 순서</h3>
+    <ul>
+      <li>카드 <b class="g">2장</b>을 받아 (밑에서 위로 밀어올려 확인)</li>
+      <li><b>프리플랍</b> → <b>플랍</b>(3장) → <b>턴</b>(1장) → <b>리버</b>(1장) 순으로 공용 카드가 열려</li>
+      <li>매 단계마다 <b class="g">베팅</b>을 하고, 끝까지 남아 카드를 비교해 이긴 사람이 <b class="g">팟</b>을 가져가</li>
+    </ul>
+
+    <h3>내 차례에 고르는 것</h3>
+    <ul>
+      <li><b>체크</b> — 돈 안 걸고 넘김 (앞에 건 돈이 없을 때)</li>
+      <li><b>콜</b> — 앞사람이 건 만큼 맞춤</li>
+      <li><b>레이즈</b> — 판돈을 올림</li>
+      <li><b>폴드</b> — 이번 판 포기 (카드 버림)</li>
+    </ul>
+
+    <h3>족보 (센 순서 ⬅️)</h3>
+    <div class="rank">
+      <span>로열/스트레이트 플러시</span><span>포카드</span><span>풀하우스</span>
+      <span>플러시</span><span>스트레이트</span><span>트리플</span>
+      <span>투페어</span><span>원페어</span><span>하이카드</span>
+    </div>
+
+    <button class="close" id="rulesClose">알겠어!</button>
+  </div>
+</dialog>
+
+<div class="wrap">
+  <h1>♠ Hold'em</h1>
+
+  <div class="join" id="joinBox">
+    <input id="code" placeholder="코드" maxlength="4" autocomplete="off">
+    <input id="name" placeholder="닉네임" maxlength="16" autocomplete="off">
+    <button id="joinBtn">참가하기</button>
+    <div class="msg" id="joinMsg"></div>
+  </div>
+
+  <div class="hidden" id="gameBox">
+    <div class="status" id="status">대기 중…</div>
+    <div class="info"><span>팟 <b id="pot">0</b></span><span>내 칩 <b id="chips">0</b></span></div>
+    <div class="board" id="board"></div>
+    <div class="mine" id="mine"></div>
+    <div class="peekhint" id="peekhint"></div>
+    <div class="msg" id="msg"></div>
+    <div class="actions" id="actions"></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script type="module">
+import { renderCards } from '/cards.js';
+const socket = io();
+const $ = (id) => document.getElementById(id);
+const SUIT = { h:'♥', d:'♦', c:'♣', s:'♠' };
+
+$('rulesBtn').onclick = () => $('rulesDlg').showModal();
+$('rulesClose').onclick = () => $('rulesDlg').close();
+
+let playerId = localStorage.getItem('pid');
+if (!playerId) { playerId = 'p_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('pid', playerId); }
+
+const urlCode = new URLSearchParams(location.search).get('c');
+if (urlCode) $('code').value = urlCode.toUpperCase();
+else $('code').value = localStorage.getItem('lastCode') || '';
+$('name').value = localStorage.getItem('lastName') || '';
+
+let controlMode = 'guest';
+$('joinBtn').onclick = join;
+function join() {
+  const code = $('code').value.trim().toUpperCase();
+  const name = $('name').value.trim() || '익명';
+  if (code.length < 3) { $('joinMsg').textContent = '코드를 입력해줘'; return; }
+  socket.emit('player:join', { code, name, playerId }, (r) => {
+    if (r?.error) { $('joinMsg').textContent = r.error; return; }
+    controlMode = r.controlMode;
+    localStorage.setItem('lastCode', code); localStorage.setItem('lastName', name);
+    $('joinBox').classList.add('hidden'); $('gameBox').classList.remove('hidden');
+  });
+}
+if ($('code').value && $('name').value) join();
+
+// ---- peek (squeeze): drag/hold up to reveal, release to flip back ----
+const mine = $('mine');
+let dragging = false, startY = 0;
+const setDeg = (d) => mine.querySelectorAll('.flip').forEach(f => f.style.transform = `rotateY(${d}deg)`);
+mine.addEventListener('pointerdown', (e) => {
+  if (!mine.querySelector('.flip')) return;
+  dragging = true; startY = e.clientY; mine.classList.add('dragging');
+  try { mine.setPointerCapture(e.pointerId); } catch {}
+});
+mine.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  e.preventDefault();
+  setDeg(Math.max(0, Math.min(180, (startY - e.clientY) * 1.5)));
+});
+const endPeek = () => { if (!dragging) return; dragging = false; mine.classList.remove('dragging'); setDeg(0); };
+mine.addEventListener('pointerup', endPeek);
+mine.addEventListener('pointercancel', endPeek);
+
+function flipEl(card) {
+  const flip = document.createElement('div'); flip.className = 'flip';
+  const back = document.createElement('div'); back.className = 'face back';
+  const front = document.createElement('div'); front.className = 'face front';
+  const red = card[1] === 'h' || card[1] === 'd';
+  front.classList.toggle('red', red);
+  const rank = card[0] === 'T' ? '10' : card[0];
+  front.innerHTML = `<span>${rank}</span><span class="s">${SUIT[card[1]]}</span>`;
+  flip.append(back, front);
+  return flip;
+}
+function renderMine(cards) {
+  mine.innerHTML = '';
+  for (const c of cards) mine.appendChild(flipEl(c));
+  $('peekhint').textContent = cards.length ? '↑ 카드를 밀어올려 확인 (떼면 다시 뒤집힘)' : '';
+}
+
+socket.on('state', (s) => {
+  const h = s.hand, me = s.me;
+  controlMode = s.controlMode || controlMode;
+  $('pot').textContent = h ? h.pot : 0;
+  $('chips').textContent = me ? me.chips : (s.players.find(p => p.id === playerId)?.chips ?? 0);
+  renderCards($('board'), h ? h.board : []);
+
+  const mySeat = h?.seats.find(x => x.id === playerId);
+  const myHole = mySeat?.hole && mySeat.hole[0] !== '??' && !mySeat.folded ? mySeat.hole : [];
+  renderMine(myHole);
+
+  const st = $('status'); st.classList.remove('turn');
+  if (!h) st.textContent = '호스트가 딜을 시작하길 기다리는 중…';
+  else if (h.winners) {
+    const won = h.winners.results.find(r => r.id === playerId);
+    st.textContent = won ? `🏆 승리! +${won.amount}` : '핸드 종료';
+  } else if (mySeat?.folded) st.textContent = '폴드함 — 다음 핸드 대기';
+  else if (h.toActId === playerId) {
+    st.classList.add('turn');
+    st.textContent = controlMode === 'host' ? '🔔 네 차례! 호스트에게 콜/레이즈/폴드를 말해줘' : '🔔 네 차례!';
+  } else st.textContent = h.street.toUpperCase();
+
+  renderActions(s);
+});
+
+function renderActions(s) {
+  const box = $('actions'); box.innerHTML = '';
+  if (controlMode === 'host') { box.innerHTML = '<div class="waiting">호스트가 베팅을 진행해</div>'; return; }
+  const me = s.me, h = s.hand;
+  if (!me || !me.yourTurn) {
+    box.innerHTML = `<div class="waiting">${h && !h.winners ? '다른 플레이어 차례…' : ''}</div>`;
+    return;
+  }
+  const toCall = me.toCall;
+  add('fold', '폴드', () => send({ type: 'fold' }));
+  if (me.canCheck) add('check', '체크', () => send({ type: 'check' }));
+  else add('call', `콜 ${Math.min(toCall, me.chips)}`, () => send({ type: 'call' }));
+
+  const myCommitted = seatBet(s);
+  const maxRaiseTo = myCommitted + me.chips;
+  const minRaiseTo = Math.min(maxRaiseTo, h.currentBet + h.minRaise);
+  if (maxRaiseTo > h.currentBet) {
+    const bar = document.createElement('div'); bar.className = 'raisebar';
+    const range = document.createElement('input');
+    range.type = 'range'; range.min = minRaiseTo; range.max = maxRaiseTo; range.step = s.bigBlind || 10;
+    range.value = minRaiseTo;
+    const amt = document.createElement('span'); amt.className = 'raiseamt'; amt.textContent = minRaiseTo;
+    range.oninput = () => amt.textContent = range.value;
+    const btn = document.createElement('button'); btn.className = 'raise';
+    btn.textContent = maxRaiseTo <= minRaiseTo ? '올인' : '레이즈';
+    btn.onclick = () => send({ type: 'raise', amount: +range.value });
+    bar.append(range, amt, btn); box.appendChild(bar);
+    if (maxRaiseTo <= minRaiseTo) range.classList.add('hidden');
+  }
+
+  function add(cls, label, fn) {
+    const b = document.createElement('button'); b.className = cls; b.textContent = label; b.onclick = fn;
+    box.appendChild(b);
+  }
+}
+
+function seatBet(s) {
+  const seat = s.hand?.seats.find(x => x.id === playerId);
+  return seat ? seat.bet : 0;
+}
+function send(action) {
+  $('msg').textContent = '';
+  socket.emit('player:action', action, (r) => { if (r?.error) $('msg').textContent = r.error; });
+}
+</script>
+</body>
+</html>

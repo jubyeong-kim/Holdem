@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Host · Menti Hold'em</title>
+<style>
+  :root{--felt:#0b3d2e;--gold:#e8c15a;--cream:#f4f1e8}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 35%,#12503b,#082a1f);
+    color:var(--cream);font-family:system-ui,-apple-system,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:24px}
+  .hidden{display:none!important}
+  button{font:inherit;font-weight:600;padding:12px 24px;border:0;border-radius:10px;
+    background:var(--gold);color:#1a1a1a;cursor:pointer}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .qr{background:#fff;padding:10px;border-radius:12px;text-align:center;color:#1a1a1a}
+  .qr img{display:block}
+  .qr .cap{font-size:13px;font-weight:700;margin-top:6px}
+  .url{opacity:.8;font-size:14px;word-break:break-all;text-align:center;margin-top:8px}
+
+  /* ---- ① setup ---- */
+  .setup{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:26px;padding:24px;text-align:center}
+  .setup h1{color:var(--gold);letter-spacing:2px;margin:0}
+  .modes{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+  .mode{background:rgba(0,0,0,.3);border:2px solid #2e7d5b;border-radius:14px;padding:20px;
+    max-width:300px;cursor:pointer}
+  .mode.sel{border-color:var(--gold);box-shadow:0 0 18px rgba(232,193,90,.4)}
+  .mode b{display:block;font-size:18px;margin-bottom:8px;color:var(--gold)}
+  .mode p{margin:0;font-size:14px;opacity:.85;line-height:1.5}
+  #ctrlQR img{width:180px;height:180px}
+  #ctrlQR{display:flex;flex-direction:column;align-items:center;gap:4px}
+
+  /* ---- ② lobby / ③ game shared ---- */
+  .gametitle{text-align:center;font-size:clamp(28px,5vw,44px);color:var(--gold);
+    letter-spacing:3px;margin:8px 0 20px}
+  .lobby{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .code{font-size:clamp(48px,10vw,92px);font-weight:800;letter-spacing:10px;color:var(--gold);line-height:1}
+  .code small{display:block;font-size:15px;letter-spacing:2px;font-weight:400;opacity:.7;color:var(--cream);margin-bottom:6px}
+  #joinQR img{width:230px;height:230px}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+  .pot{font-size:24px}.pot b{color:var(--gold);font-size:30px}
+  .tablearea{display:flex;align-items:center;justify-content:center;gap:40px;margin:24px 0;min-height:130px}
+  .deck{position:relative;width:64px;height:92px;flex:0 0 auto}
+  .deck .cb{position:absolute;width:64px;height:92px;border-radius:8px;
+    background:repeating-linear-gradient(45deg,#7a1f1f,#7a1f1f 6px,#5c1414 6px,#5c1414 12px);
+    border:2px solid #e8c15a;box-shadow:0 3px 8px rgba(0,0,0,.4)}
+  .deck .lbl{position:absolute;top:100px;width:64px;text-align:center;font-size:12px;opacity:.7}
+  .board{display:flex;gap:12px;justify-content:center;align-items:center}
+  .win{text-align:center;font-size:24px;color:var(--gold);margin:12px 0;min-height:30px}
+
+  .players{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:14px}
+  .p{background:rgba(0,0,0,.25);border:2px solid transparent;border-radius:14px;padding:14px}
+  .p.turn{border-color:var(--gold);box-shadow:0 0 18px rgba(232,193,90,.5)}
+  .p.folded{opacity:.4}
+  .p .nm{font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .p .chips{color:var(--gold);font-size:20px;margin-top:4px}
+  .p .bet{font-size:14px;opacity:.85;margin-top:6px;min-height:18px}
+  .tag{font-size:11px;padding:2px 7px;border-radius:6px;background:#2e7d5b;margin-left:6px}
+  .hole{display:flex;gap:6px;margin-top:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#e05a5a;display:inline-block;margin-left:6px}
+  .dot.on{background:#5ae08a}
+  .card{width:64px;height:92px;border-radius:8px;background:var(--cream);color:#1a1a1a;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-weight:800;font-size:26px;box-shadow:0 3px 8px rgba(0,0,0,.4)}
+  .card.red{color:#c62828}
+  .card.back{background:repeating-linear-gradient(45deg,#7a1f1f,#7a1f1f 6px,#5c1414 6px,#5c1414 12px)}
+  .card.small{width:34px;height:48px;font-size:15px;border-radius:5px}
+  .card .s{font-size:.8em}
+  .log{margin-top:20px;background:rgba(0,0,0,.3);border-radius:12px;padding:14px 18px;
+    font-size:14px;max-height:170px;overflow:auto}
+  .log div{padding:2px 0;opacity:.9}
+  .blinds{opacity:.85;font-size:15px}.blinds b{color:var(--gold)}
+  .ghost{background:transparent;border:2px solid #2e7d5b;color:var(--cream);padding:8px 16px}
+  /* settings dialog */
+  dialog{border:0;border-radius:16px;background:#0f4736;color:var(--cream);padding:24px;
+    max-width:360px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  dialog h3{margin:0 0 6px;color:var(--gold)}
+  dialog .cur{opacity:.8;font-size:14px;margin-bottom:14px}
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .presets button{background:rgba(0,0,0,.25);border:2px solid #2e7d5b;color:var(--cream);font-size:16px}
+  .presets button.cur{border-color:var(--gold);color:var(--gold)}
+  dialog .close{margin-top:16px;width:100%;background:var(--gold);color:#1a1a1a}
+</style>
+</head>
+<body>
+
+<div id="userbar" style="position:fixed;top:14px;right:18px;font-size:14px;opacity:.9;z-index:5">
+  👤 <b id="who"></b>
+  <button class="ghost" id="logout" style="padding:6px 12px">로그아웃</button>
+</div>
+
+<!-- ① SETUP -->
+<div class="setup" id="setup">
+  <h1>♠ 방 만들기 ♥</h1>
+  <p>베팅 조작을 누가 할지 골라줘</p>
+  <div class="modes">
+    <div class="mode sel" data-mode="host">
+      <b>🖥️ 호스트가 조작</b>
+      <p>내 폰으로 모든 플레이어의 폴드·콜·레이즈를 대신 눌러. 게스트는 자기 카드만 봐.</p>
+    </div>
+    <div class="mode" data-mode="guest">
+      <b>📱 게스트가 각자 조작</b>
+      <p>각 게스트가 자기 폰에서 직접 베팅을 결정해. (기본 방식)</p>
+    </div>
+  </div>
+  <div id="ctrlQR" class="hidden"></div>
+  <div class="blinds">판돈(블라인드): <b id="setupBlinds">10 / 20</b>
+    <button class="ghost" id="setupSettings">⚙️ 변경</button></div>
+  <button id="doneBtn">완료 · 참가 코드 띄우기</button>
+</div>
+
+<!-- ②/③ MAIN -->
+<div class="wrap hidden" id="main">
+  <h1 class="gametitle">♠ 텍사스 홀덤 ♥</h1>
+
+  <!-- ② lobby -->
+  <div class="lobby" id="lobby">
+    <div class="code" id="code"><small>참가 코드</small>····</div>
+    <div id="joinQR"></div>
+    <div class="url" id="joinUrl"></div>
+    <button id="deal">딜 시작</button>
+  </div>
+
+  <!-- ③ game -->
+  <div class="hidden" id="game">
+    <div class="topbar">
+      <div class="pot">팟 <b id="pot">0</b> <span class="blinds">· 블라인드 <b id="gameBlinds">10/20</b></span></div>
+      <div>
+        <button class="ghost hidden" id="gameSettings">⚙️ 판돈 설정</button>
+        <button id="nextBtn" class="hidden">다음 핸드</button>
+      </div>
+    </div>
+    <div class="tablearea">
+      <div class="deck"><div class="cb" style="top:0;left:0"></div>
+        <div class="cb" style="top:2px;left:2px"></div>
+        <div class="cb" style="top:4px;left:4px"></div>
+        <div class="lbl">덱</div></div>
+      <div class="board" id="board"></div>
+    </div>
+    <div class="win" id="win"></div>
+  </div>
+
+  <div class="players" id="players"></div>
+  <div class="log" id="log"></div>
+</div>
+
+<dialog id="settingsDlg">
+  <h3>판돈(블라인드) 설정</h3>
+  <div class="cur">현재: <b id="dlgCur">10 / 20</b> · 다음 핸드부터 적용</div>
+  <div class="presets" id="presets"></div>
+  <button class="close" id="dlgClose">닫기</button>
+</dialog>
+
+<script src="/socket.io/socket.io.js"></script>
+<script type="module">
+import { renderCards, cardEl } from '/cards.js';
+const socket = io();
+const $ = (id) => document.getElementById(id);
+
+let mode = 'host';
+let started = false;   // has the first hand been dealt?
+let stage = 'setup';   // 'setup' | 'main'
+
+document.querySelectorAll('.mode').forEach((m) => m.onclick = () => {
+  document.querySelectorAll('.mode').forEach((x) => x.classList.remove('sel'));
+  m.classList.add('sel'); mode = m.dataset.mode;
+  $('ctrlQR').classList.toggle('hidden', mode !== 'host');
+});
+
+// ---- blinds / settings dialog ----
+const BLIND_LEVELS = [[10,20],[25,50],[50,100],[100,200],[200,400],[500,1000]];
+let curSB = 10, curBB = 20;
+$('presets').innerHTML = BLIND_LEVELS.map(([sb,bb]) =>
+  `<button data-sb="${sb}" data-bb="${bb}">${sb} / ${bb}</button>`).join('');
+$('presets').querySelectorAll('button').forEach((b) => b.onclick = () => {
+  socket.emit('host:setBlinds', { sb: +b.dataset.sb, bb: +b.dataset.bb }, (r) => {
+    if (r?.error) alert(r.error);
+  });
+});
+const openDlg = () => $('settingsDlg').showModal();
+$('setupSettings').onclick = openDlg;
+$('gameSettings').onclick = openDlg;
+$('dlgClose').onclick = () => $('settingsDlg').close();
+function updateBlinds(sb, bb) {
+  curSB = sb; curBB = bb;
+  $('setupBlinds').textContent = `${sb} / ${bb}`;
+  $('gameBlinds').textContent = `${sb}/${bb}`;
+  $('dlgCur').textContent = `${sb} / ${bb}`;
+  $('presets').querySelectorAll('button').forEach((b) =>
+    b.classList.toggle('cur', +b.dataset.sb === sb && +b.dataset.bb === bb));
+}
+
+// ---- auth gate ----
+const toLogin = () => { localStorage.removeItem('hostAuth'); location.href = '/login.html'; };
+const auth = JSON.parse(localStorage.getItem('hostAuth') || 'null');
+if (!auth) toLogin();
+$('who').textContent = auth?.username || '';
+$('logout').onclick = async () => {
+  try { await fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: auth.token }) }); } catch {}
+  sessionStorage.removeItem('hostCode'); toLogin();
+};
+
+// create the room immediately so QRs exist during setup
+let code = sessionStorage.getItem('hostCode');
+function createRoom() {
+  socket.emit('host:create', { token: auth.token, controlMode: mode, smallBlind: 10, bigBlind: 20, startingChips: 1000 },
+    (r) => { if (r?.error === 'auth') return toLogin(); code = r.code; sessionStorage.setItem('hostCode', code); });
+}
+if (auth) {
+  if (code) socket.emit('host:resume', { code, token: auth.token }, (r) => {
+    if (r.error === 'auth') return toLogin();
+    if (r.error) { code = null; sessionStorage.removeItem('hostCode'); createRoom(); }
+    else enterMain();
+  });
+  else createRoom();
+}
+
+$('doneBtn').onclick = () => socket.emit('host:setMode', { mode }, () => enterMain());
+function enterMain() { stage = 'main'; $('setup').classList.add('hidden'); $('main').classList.remove('hidden'); }
+
+$('deal').onclick = $('nextBtn').onclick = () =>
+  socket.emit('host:start', {}, (r) => { if (r?.error) alert(r.error); });
+
+socket.on('state', (s) => {
+  const h = s.hand;
+  if (h) started = true;
+  if (s.smallBlind) updateBlinds(s.smallBlind, s.bigBlind);
+
+  // setup: control QR
+  if (stage === 'setup' && s.qr && $('ctrlQR').childElementCount === 0) {
+    $('ctrlQR').innerHTML = `<div class="qr"><img src="${s.qr.control}"><div class="cap">🎮 내 폰으로 조작</div></div>
+      <div class="url">${s.urls?.control || ''}</div>`;
+    $('ctrlQR').classList.toggle('hidden', mode !== 'host');
+  }
+
+  // lobby vs game
+  $('lobby').classList.toggle('hidden', started);
+  $('game').classList.toggle('hidden', !started);
+
+  if (!started) {
+    $('code').innerHTML = '<small>참가 코드</small>' + (s.code || '····');
+    if (s.qr && !$('joinQR').childElementCount)
+      $('joinQR').innerHTML = `<div class="qr"><img src="${s.qr.join}"></div>`;
+    $('joinUrl').textContent = s.urls?.join || '';
+    $('deal').disabled = s.players.length < 2;
+    $('deal').textContent = s.players.length < 2 ? '플레이어 2명 이상 필요' : '딜 시작';
+  } else {
+    $('pot').textContent = h ? h.pot : 0;
+    renderCards($('board'), h ? h.board : []);
+    $('win').textContent = '';
+    $('nextBtn').classList.toggle('hidden', s.inHand);
+    $('gameSettings').classList.toggle('hidden', s.inHand); // 판돈 변경은 핸드 사이에만
+    if (h?.winners) {
+      $('win').textContent = '🏆 ' + h.winners.results.map(r => `${r.name} +${r.amount}`).join(', ')
+        + (h.winners.reveal ? '  ·  ' + h.winners.reveal.map(x => `${nameOf(s,x.id)}: ${x.desc}`).join(' / ') : '');
+    }
+  }
+
+  renderPlayers(s);
+  $('log').innerHTML = (s.log || []).map(l => `<div>${l}</div>`).join('');
+  $('log').scrollTop = $('log').scrollHeight;
+});
+
+function nameOf(s, id){ return s.players.find(p=>p.id===id)?.name || '?'; }
+
+function renderPlayers(s) {
+  const box = $('players'); box.innerHTML = '';
+  const seats = s.hand?.seats;
+  for (const p of s.players) {
+    const seat = seats?.find(x => x.id === p.id);
+    const el = document.createElement('div');
+    el.className = 'p' + (seat?.toAct ? ' turn' : '') + (seat?.folded ? ' folded' : '');
+    el.innerHTML = `<div class="nm">${p.name}
+      ${seat?.isButton ? '<span class="tag">D</span>' : ''}
+      ${seat?.allIn ? '<span class="tag">ALL-IN</span>' : ''}
+      <span class="dot ${p.connected ? 'on' : ''}"></span></div>
+      <div class="chips">${p.chips}</div>
+      <div class="bet">${seat && seat.bet ? '벳 ' + seat.bet : (seat?.folded ? '폴드' : '')}</div>`;
+    if (seat?.hole) { const hd = document.createElement('div'); hd.className = 'hole';
+      seat.hole.forEach(c => { const cc = cardEl(c); cc.classList.add('small'); hd.appendChild(cc); });
+      el.appendChild(hd);
+    }
+    box.appendChild(el);
+  }
+}
+</script>
+</body>
+</html>
