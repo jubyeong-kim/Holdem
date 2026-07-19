@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import { networkInterfaces } from 'os';
 import QRCode from 'qrcode';
 import { Table } from './poker.js';
-import { register, login, userOf, logout } from './auth.js';
+import { register, login, userOf, logout, loginAllowed, recordFail, clearFails } from './auth.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -24,14 +24,23 @@ const ORIGIN = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL
   || `http://${HOST_IP}:${PORT}`).replace(/\/$/, '');
 
 const app = express();
+app.set('trust proxy', true); // Render/Cloudflare 뒤에서 실제 클라이언트 IP를 읽으려면 필요
 app.use(express.json());
 app.post('/api/register', (req, res) => {
-  try { register(req.body.username, req.body.password); res.json({ ok: true }); }
+  try { register(req.body.username, req.body.password, req.ip); res.json({ ok: true }); }
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 app.post('/api/login', (req, res) => {
-  try { const token = login(req.body.username, req.body.password); res.json({ token, username: userOf(token) }); }
-  catch (e) { res.status(400).json({ error: e.message }); }
+  if (!loginAllowed(req.ip))
+    return res.status(429).json({ error: '로그인 시도가 너무 많아. 10분 후 다시 시도해줘' });
+  try {
+    const token = login(req.body.username, req.body.password);
+    clearFails(req.ip);
+    res.json({ token, username: userOf(token) });
+  } catch (e) {
+    recordFail(req.ip);
+    res.status(400).json({ error: e.message });
+  }
 });
 app.post('/api/logout', (req, res) => { logout(req.body?.token); res.json({ ok: true }); });
 app.use(express.static('public'));

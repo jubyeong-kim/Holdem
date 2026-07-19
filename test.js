@@ -109,4 +109,25 @@ function total(t) { return t.players.reduce((a, p) => a + p.chips, 0) + (t.hand?
   console.log('✓ auth (해시 저장·오답 거부·중복 차단)');
 }
 
+// --- IP당 계정 1개 + 로그인 시도 횟수 제한 ---
+{
+  const { register, loginAllowed, recordFail, clearFails } = await import('./auth.js');
+  const fs = await import('fs');
+  const F = new URL('./users.json', import.meta.url);
+  const purge = () => { try { const u = JSON.parse(fs.readFileSync(F, 'utf8'));
+    delete u.zzz_ip1; delete u.zzz_ip2; fs.writeFileSync(F, JSON.stringify(u, null, 2)); } catch {} };
+  purge();
+  register('zzz_ip1', 'pw1234', '9.9.9.9');
+  assert.throws(() => register('zzz_ip2', 'pw1234', '9.9.9.9'), /IP당 1개/, '같은 IP 두번째 계정 차단');
+  register('zzz_ip2', 'pw1234', '9.9.9.8'); // 다른 IP는 OK
+  purge();
+
+  const ip = '5.5.5.5';
+  for (let i = 0; i < 5; i++) { assert.ok(loginAllowed(ip), `시도 ${i + 1} 허용`); recordFail(ip); }
+  assert.ok(!loginAllowed(ip), '5회 실패 후 잠금');
+  clearFails(ip);
+  assert.ok(loginAllowed(ip), '성공/해제 후 다시 허용');
+  console.log('✓ IP당 계정 1개 + 로그인 5회 제한');
+}
+
 console.log('\n모든 self-check 통과');
