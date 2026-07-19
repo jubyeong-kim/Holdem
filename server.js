@@ -19,7 +19,8 @@ function lanIP() {
   return cands.find((a) => /^(192\.168|10\.|172\.)/.test(a)) || cands[0] || 'localhost';
 }
 const HOST_IP = lanIP();
-const ORIGIN = `http://${HOST_IP}:${PORT}`;
+// 배포 시 PUBLIC_URL(예: https://myapp.onrender.com)을 쓰고, 로컬이면 LAN IP로.
+const ORIGIN = (process.env.PUBLIC_URL || `http://${HOST_IP}:${PORT}`).replace(/\/$/, '');
 
 const app = express();
 app.use(express.json());
